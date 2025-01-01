@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera } from 'lucide-react';
+import { Camera, RotateCcw } from 'lucide-react';
 
 interface CameraCaptureProps {
   onCapture: (imageData: string) => void;
@@ -11,18 +11,29 @@ interface CameraCaptureProps {
 export function CameraCapture({ onCapture }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // 'user' for front, 'environment' for back
 
   const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsStreaming(true);
+      try {
+        const constraints: MediaStreamConstraints = {
+          video: { facingMode: facingMode }, // Set the facing mode
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          setIsStreaming(true);
+        }
+      } catch (error) {
+          console.error('Error accessing camera:', error);
       }
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-    }
-  };
+    };
+
+    const switchCamera = () => {
+        stopCamera();
+        setFacingMode(facingMode === 'user' ? 'environment' : 'user');
+        setTimeout(startCamera, 100); // small delay to allow stopCamera to complete
+    };
+
 
   const captureImage = () => {
     if (videoRef.current) {
@@ -48,6 +59,7 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     }
   };
 
+
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative w-full max-w-md aspect-video bg-black rounded-lg overflow-hidden">
@@ -68,6 +80,9 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
           <>
             <Button onClick={captureImage} variant="default">Capture</Button>
             <Button onClick={stopCamera} variant="destructive">Stop Camera</Button>
+            <Button onClick={switchCamera} variant="secondary">
+                <RotateCcw className="mr-2 h-4 w-4"/> Switch
+                </Button>
           </>
         )}
       </div>
