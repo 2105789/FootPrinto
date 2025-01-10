@@ -2,11 +2,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
 
+// Constants
+export const TREE_CO2_ABSORPTION_PER_YEAR = 10; 
+export const AVERAGE_TREE_LIFESPAN = 40; 
+
 export interface Source {
   name: string;
   url: string;
   year_published?: string;
-  reliability_score: number;  // 0-1 score indicating source reliability
+  reliability_score: number;
 }
 
 export interface CarbonFootprint {
@@ -16,7 +20,8 @@ export interface CarbonFootprint {
   unit: string;
   confidence_score: number;
   calculation_basis: string;
-  sources: Source[];  // Array of sources for the carbon data
+  sources: Source[];
+  trees_required: number;
 }
 
 export interface ObjectMetadata {
@@ -24,7 +29,7 @@ export interface ObjectMetadata {
   usage_assumptions: string;
   data_source: string;
   geographical_region: string;
-  methodology_source?: Source;  // Source for the calculation methodology
+  methodology_source?: Source;
 }
 
 export interface DetectedObject {
@@ -41,38 +46,52 @@ export interface AnalysisResult {
     number_of_objects_detected: number;
     default_region: string;
     model_version: string;
-    data_sources: Source[];  // General sources used for the analysis
+    data_sources: Source[];
   };
 }
 
-export async function analyzeImage(imageData: string): Promise<AnalysisResult> {
-  const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
+function calculateTreesRequired(lifetime_total_kg_co2: number): number {
+  // Always require at least 1 tree if there's any carbon footprint
+  if (lifetime_total_kg_co2 <= 0) {
+    return 0;
+  }
+  
+  const totalAbsorptionPerTree = TREE_CO2_ABSORPTION_PER_YEAR * AVERAGE_TREE_LIFESPAN;
+  const calculatedTrees = Math.ceil(lifetime_total_kg_co2 / totalAbsorptionPerTree);
+  return Math.max(1, calculatedTrees); // Return at least 1 tree if there's any emission
+}
 
-  const prompt = `Your task is to analyze the provided image and:
-1. Identify all visible objects
-2. For each identified object, generate a JSON output with the following structure, using fixed values for humans and approximate values for all other objects:
+export async function analyzeImage(imageData: string): Promise<AnalysisResult> {
+  const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash-8b" });
+
+  const prompt = `Analyze the provided image and follow these instructions precisely:
+
+1. IMPORTANT: Only identify objects that are clearly visible in the image. Do not make assumptions or include objects that are not actually present.
+
+2. For each visible object (and ONLY visible objects), generate a JSON output with this structure:
 {
   "objects": [
     {
-      "name": "string",
+      "name": "string (name of the visible object)",
       "carbon_footprint": {
-        "lifetime_total_kg_co2": number (required, use fixed value of 400000 for humans),
-        "manufacturing_kg_co2": number (required, fixed value of 2750 for humans representing pregnancy/birth),
-        "daily_operation_kg_co2": number (required, fixed value of 15 for humans),
+        "lifetime_total_kg_co2": number (estimated lifetime carbon footprint),
+        "manufacturing_kg_co2": number (manufacturing carbon footprint),
+        "daily_operation_kg_co2": number (daily operational carbon footprint),
         "unit": "kg_co2",
         "confidence_score": number (0-1),
-        "calculation_basis": "string (specify 'global_fixed_value' for humans, or basis for other objects)",
+        "calculation_basis": "string (specify calculation methodology)",
         "sources": [
           {
-            "name": "string (e.g., 'EPA Environmental Impact Database')",
-            "url": "string (valid URL if available, otherwise 'Not available')",
+            "name": "string",
+            "url": "string",
             "year_published": "string (YYYY format)",
             "reliability_score": number (0-1)
           }
-        ]
+        ],
+        "trees_required": number
       },
       "metadata": {
-        "assumed_lifespan_years": number (required, use fixed value of 73 years for humans),
+        "assumed_lifespan_years": number,
         "usage_assumptions": "string",
         "data_source": "string",
         "geographical_region": "string",
@@ -102,24 +121,13 @@ export async function analyzeImage(imageData: string): Promise<AnalysisResult> {
   }
 }
 
-Requirements:
-- Use these fixed values for ALL human beings detected, regardless of age, gender, or ethnicity:
-  * Lifetime total: 400000 kg CO2
-  * Manufacturing (birth): 2750 kg CO2
-  * Daily operation: 15 kg CO2
-  * Lifespan: 73 years
-- For non-human objects, use approximate values and cite sources
-- ALL fields must contain numerical values - no null values allowed
-- Round numerical values to 2 decimal places
-- Include confidence scores for all identifications
-- Document all assumptions and averages used
-- Specify geographical region as "Global standardized" for humans
-- Include at least one source for each carbon footprint calculation
-- For missing source URLs, use "Not available"
-- Return only valid JSON, no additional text
-- No value should be null in any case
-- All objects and keys must have a valid value
-- Don't give human object if there is no human in the picture`;
+IMPORTANT RULES:
+- Only include objects that are clearly visible in the image
+- Do not make assumptions about objects that might be present but are not visible
+- If you're not confident about identifying an object, do not include it
+- Provide detailed justification for each object identified
+- If no objects are detected, return an empty objects array
+- Ensure any object with a carbon footprint has at least some trees recommended for offset`;
 
   try {
     const result = await model.generateContent([prompt, { inlineData: { data: imageData, mimeType: "image/jpeg" } }]);
@@ -127,12 +135,20 @@ Requirements:
     const text = response.text();
     
     try {
-      return JSON.parse(text);
+      const parsedResult = JSON.parse(text) as AnalysisResult;
+      // Calculate trees required with minimum 1 tree if there's any carbon footprint
+      parsedResult.objects = parsedResult.objects.map((obj: DetectedObject) => ({
+        ...obj,
+        carbon_footprint: {
+          ...obj.carbon_footprint,
+          trees_required: calculateTreesRequired(obj.carbon_footprint.lifetime_total_kg_co2)
+        }
+      }));
+      return parsedResult;
     } catch (parseError) {
-      // If parsing fails, try to extract JSON from the response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        return JSON.parse(jsonMatch[0]) as AnalysisResult;
       }
       throw new Error("Could not parse Gemini API response as JSON");
     }
