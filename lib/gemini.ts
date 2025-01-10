@@ -2,6 +2,13 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
 
+export interface Source {
+  name: string;
+  url: string;
+  year_published?: string;
+  reliability_score: number;  // 0-1 score indicating source reliability
+}
+
 export interface CarbonFootprint {
   lifetime_total_kg_co2: number;
   manufacturing_kg_co2: number;
@@ -9,6 +16,7 @@ export interface CarbonFootprint {
   unit: string;
   confidence_score: number;
   calculation_basis: string;
+  sources: Source[];  // Array of sources for the carbon data
 }
 
 export interface ObjectMetadata {
@@ -16,6 +24,7 @@ export interface ObjectMetadata {
   usage_assumptions: string;
   data_source: string;
   geographical_region: string;
+  methodology_source?: Source;  // Source for the calculation methodology
 }
 
 export interface DetectedObject {
@@ -31,6 +40,8 @@ export interface AnalysisResult {
     image_quality: string;
     number_of_objects_detected: number;
     default_region: string;
+    model_version: string;
+    data_sources: Source[];  // General sources used for the analysis
   };
 }
 
@@ -50,13 +61,27 @@ export async function analyzeImage(imageData: string): Promise<AnalysisResult> {
         "daily_operation_kg_co2": number (required, fixed value of 15 for humans),
         "unit": "kg_co2",
         "confidence_score": number (0-1),
-        "calculation_basis": "string (specify 'global_fixed_value' for humans, or basis for other objects)"
+        "calculation_basis": "string (specify 'global_fixed_value' for humans, or basis for other objects)",
+        "sources": [
+          {
+            "name": "string (e.g., 'EPA Environmental Impact Database')",
+            "url": "string (valid URL if available, otherwise 'Not available')",
+            "year_published": "string (YYYY format)",
+            "reliability_score": number (0-1)
+          }
+        ]
       },
       "metadata": {
         "assumed_lifespan_years": number (required, use fixed value of 73 years for humans),
-        "usage_assumptions": "string (for humans: 'Standard global fixed values regardless of demographics')",
-        "data_source": "string (for humans: 'Global standardized human values', specify sources for other objects)",
-        "geographical_region": "string (for humans: 'Global standardized', specify region for other objects)"
+        "usage_assumptions": "string",
+        "data_source": "string",
+        "geographical_region": "string",
+        "methodology_source": {
+          "name": "string",
+          "url": "string",
+          "year_published": "string",
+          "reliability_score": number
+        }
       }
     }
   ],
@@ -64,7 +89,16 @@ export async function analyzeImage(imageData: string): Promise<AnalysisResult> {
     "timestamp": "string (ISO format)",
     "image_quality": "string",
     "number_of_objects_detected": number,
-    "default_region": "string (specify default region for non-human calculations)"
+    "default_region": "string",
+    "model_version": "string",
+    "data_sources": [
+      {
+        "name": "string",
+        "url": "string",
+        "year_published": "string",
+        "reliability_score": number
+      }
+    ]
   }
 }
 
@@ -74,16 +108,18 @@ Requirements:
   * Manufacturing (birth): 2750 kg CO2
   * Daily operation: 15 kg CO2
   * Lifespan: 73 years
-- For non-human objects, use approximate values as before
+- For non-human objects, use approximate values and cite sources
 - ALL fields must contain numerical values - no null values allowed
 - Round numerical values to 2 decimal places
 - Include confidence scores for all identifications
 - Document all assumptions and averages used
 - Specify geographical region as "Global standardized" for humans
+- Include at least one source for each carbon footprint calculation
+- For missing source URLs, use "Not available"
 - Return only valid JSON, no additional text
-- No value should be null in any case irrespective of possibility
+- No value should be null in any case
 - All objects and keys must have a valid value
-- Dont Give human object if there is no human in the picture`;
+- Don't give human object if there is no human in the picture`;
 
   try {
     const result = await model.generateContent([prompt, { inlineData: { data: imageData, mimeType: "image/jpeg" } }]);
@@ -105,7 +141,6 @@ Requirements:
     throw error;
   }
 }
-
 
 //Through Imge Procesing
 /*
