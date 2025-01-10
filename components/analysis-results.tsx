@@ -1,4 +1,4 @@
-import { DetectedObject } from '@/lib/gemini';
+import { DetectedObject, TREE_CO2_ABSORPTION_PER_YEAR, AVERAGE_TREE_LIFESPAN } from '@/lib/gemini';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -8,7 +8,8 @@ import {
   Calendar, 
   ChevronDown, 
   BookOpen,
-  Star
+  Star,
+  Trees
 } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -36,6 +37,27 @@ export function AnalysisResults({ objects }: AnalysisResultsProps) {
 function AnalysisCard({ object }: { object: DetectedObject }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Safely calculate the number of trees to display
+  const getTreeCount = (totalTrees: number): number => {
+    if (typeof totalTrees !== 'number' || isNaN(totalTrees) || totalTrees < 0) {
+      return 0;
+    }
+    return Math.min(20, Math.floor(totalTrees));
+  };
+
+  // Get the actual number of trees for display
+  const treeCount = getTreeCount(object.carbon_footprint.trees_required);
+  const remainingTrees = Math.max(0, object.carbon_footprint.trees_required - 20);
+
+  // Generate array of trees to display
+  const treeArray = Array.from({ length: treeCount }, (_, index) => (
+    <Trees
+      key={index} 
+      className="h-4 w-4 text-emerald-600" 
+      fill="currentColor"
+    />
+  ));
+
   return (
     <Card className="p-4 hover:shadow-lg transition-shadow">
       <div className="flex flex-col space-y-3">
@@ -48,11 +70,40 @@ function AnalysisCard({ object }: { object: DetectedObject }) {
         </div>
 
         {/* Carbon Footprint Display */}
-        <div className="flex items-center text-green-600">
-          <Leaf className="mr-2 h-4 w-4" />
-          <span className="font-medium text-sm">
-            {object.carbon_footprint.lifetime_total_kg_co2.toFixed(2)} kg CO₂ (Lifetime)
-          </span>
+        <div className="flex flex-col space-y-2">
+          <div className="flex items-center text-green-600">
+            <Leaf className="mr-2 h-4 w-4" />
+            <span className="font-medium text-sm">
+              {object.carbon_footprint.lifetime_total_kg_co2.toFixed(2)} kg CO₂ (Lifetime)
+            </span>
+          </div>
+          
+          {/* Trees Required Section */}
+          <div className="bg-emerald-50 p-3 rounded-lg">
+            <div className="flex items-center text-emerald-700 mb-2">
+              <Trees className="mr-2 h-5 w-5" />
+              <span className="font-semibold">
+                Trees Required to Offset: {Math.max(0, Math.round(object.carbon_footprint.trees_required))}
+              </span>
+            </div>
+            
+            {/* Tree Visualization */}
+            <div className="flex flex-col space-y-2">
+              <div className="flex flex-wrap gap-1">
+                {treeArray}
+                {remainingTrees > 0 && (
+                  <span className="text-sm text-emerald-700 ml-2 self-center">
+                    +{remainingTrees} more
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-emerald-600">
+                Equivalent to {Math.max(0, Math.round(object.carbon_footprint.trees_required))} trees planted for {AVERAGE_TREE_LIFESPAN} years
+                <br/>
+                (Each tree absorbs ~{TREE_CO2_ABSORPTION_PER_YEAR} kg CO₂ per year)
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Details Grid */}
