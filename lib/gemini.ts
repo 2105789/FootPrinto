@@ -242,7 +242,7 @@ Requirements:
 - Include human in json only and only if there is a human being present in the image directly and not indirectly 
 - Use these fixed values for ALL human beings detected show human data only if human is present in the image, regardless of age, gender, or ethnicity:
   * Lifetime total: 400000 kg CO2
-  * Manufacturing (birth): 2750 kg CO2
+  * Manufacturing (birth): NA kg CO2
   * Daily operation: 15 kg CO2
   * Lifespan: 73 years
 - For non-human objects, use approximate values as before
