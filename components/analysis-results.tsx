@@ -11,8 +11,9 @@ import {
   BookOpen, 
   Star, 
   Link, 
-  Calendar, 
-  Info 
+  Calendar,
+  MapPin,
+  Info
 } from 'lucide-react';
 
 interface AnalysisResultsProps {
@@ -21,7 +22,7 @@ interface AnalysisResultsProps {
 
 export function AnalysisResults({ objects }: AnalysisResultsProps) {
   return (
-    <div className="space-y-4 px-2 py-4 md:px-2 lg:px-12">
+    <div className="space-y-4 px-2 py-4 md:px-4 lg:px-12">
       <TreeInfoCard />
       <div className="space-y-4">
         {objects.map((object, index) => (
@@ -34,10 +35,10 @@ export function AnalysisResults({ objects }: AnalysisResultsProps) {
 
 function TreeInfoCard() {
   return (
-    <div className="p-6 bg-green-700 text-white rounded-lg shadow-md">
+    <div className="p-4 md:p-6 bg-green-700 text-white rounded-lg shadow-md">
       <div className="flex flex-col items-center text-center">
-        <Trees className="h-12 w-12 text-white mb-3" />
-        <h1 className="text-2xl font-bold">Power of Trees 🌿</h1>
+        <Trees className="h-8 w-8 md:h-12 md:w-12 text-white mb-2 md:mb-3" />
+        <h1 className="text-xl md:text-2xl font-bold">Power of Trees 🌿</h1>
         <p className="mt-1 text-sm">
           Each tree absorbs approximately <strong>{TREE_CO2_ABSORPTION_PER_YEAR} kg CO₂</strong> per year
         </p>
@@ -59,28 +60,47 @@ function AnalysisCard({ object }: { object: DetectedObject }) {
   const treeArray = Array.from({ length: treeCount }, (_, index) => (
     <Trees key={index} className="h-5 w-5 text-emerald-500" />
   ));
+
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 space-y-3 border">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-lg shadow-sm p-3 md:p-4 space-y-4 border">
+      {/* Header with Title and Confidence Score */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <h3 className="font-bold text-gray-800 text-lg">{object.name}</h3>
-        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-lg">
+        <span className="inline-flex px-2 py-1 bg-green-100 text-green-800 text-xs rounded-lg w-fit">
           {Math.round(object.carbon_footprint.confidence_score * 100)}% Confidence
         </span>
       </div>
 
+      {/* Metadata Section */}
+      {(object.metadata.usage_assumptions || object.metadata.geographical_region) && (
+        <div className="space-y-2">
+          {object.metadata.usage_assumptions && (
+            <div className="flex items-start gap-2 text-sm text-gray-600">
+              <Info className="h-4 w-4 mt-1 flex-shrink-0" />
+              <p>{object.metadata.usage_assumptions}</p>
+            </div>
+          )}
+          {object.metadata.geographical_region && (
+            <div className="flex items-start gap-2 text-sm text-gray-600">
+              <MapPin className="h-4 w-4 mt-1 flex-shrink-0" />
+              <p>{object.metadata.geographical_region}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Lifetime Carbon Footprint */}
       <div className="flex items-center text-green-700">
-        <Leaf className="h-5 w-5 mr-2" />
+        <Leaf className="h-5 w-5 mr-2 flex-shrink-0" />
         <span className="font-medium text-sm">
           {object.carbon_footprint.lifetime_total_kg_co2.toFixed(2)} kg CO₂ for a lifespan of ({object.metadata.assumed_lifespan_years} yrs)
         </span>
       </div>
 
       {/* Trees to Offset */}
-      <div className="bg-emerald-50 p-4 rounded-lg space-y-2">
+      <div className="bg-emerald-50 p-3 md:p-4 rounded-lg space-y-2">
         <div className="flex items-center">
-          <Trees className="h-5 w-5 text-emerald-500 mr-3" />
+          <Trees className="h-5 w-5 text-emerald-500 mr-3 flex-shrink-0" />
           <span className="text-sm font-semibold text-emerald-700">
             Trees to Offset: {Math.round(object.carbon_footprint.trees_required)}
           </span>
@@ -88,13 +108,13 @@ function AnalysisCard({ object }: { object: DetectedObject }) {
         <div className="flex flex-wrap items-center gap-2">
           {treeArray}
           {remainingTrees > 0 && (
-            <span className="ml-2 text-sm text-gray-600">+{remainingTrees} more</span>
+            <span className="text-sm text-gray-600">+{remainingTrees} more</span>
           )}
         </div>
       </div>
 
       {/* Operation and Manufacturing Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <StatCard
           label="Daily Operation"
           value={`${object.carbon_footprint.daily_operation_kg_co2.toFixed(2)} kg CO₂`}
@@ -143,15 +163,15 @@ function StatCard({ label, value, bgColor, textColor }: { label: string; value: 
 function SourceCard({ source }: { source: any }) {
   return (
     <div className="p-3 bg-gray-50 rounded-lg text-sm space-y-2">
-      <div className="flex justify-between">
+      <div className="flex flex-col md:flex-row md:justify-between gap-2">
         <span className="font-semibold">{source.name}</span>
         <span className="flex items-center">
           <Star className="h-4 w-4 text-yellow-500 mr-1" />
           {Math.round(source.reliability_score * 100)}% Reliable
         </span>
       </div>
-      <div className="text-xs text-gray-500 flex items-center space-x-3">
-        {source.url !== "Not available" && (
+      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+        {source.url && ( 
           <a 
             href={source.url} 
             target="_blank" 
