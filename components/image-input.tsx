@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
+import { ImageViewer } from './image-viewer';
 
 interface ImageInputProps {
   onCapture?: (imageData: string) => void;
@@ -10,6 +11,7 @@ interface ImageInputProps {
 export function ImageInput({ onCapture, maxSizeMB = 5 }: ImageInputProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,13 +70,22 @@ export function ImageInput({ onCapture, maxSizeMB = 5 }: ImageInputProps) {
         )}
       </div>
       {selectedImage && (
-        <div className="relative w-full max-w-md mx-auto aspect-video">
+        <div 
+          className="relative w-full max-w-md mx-auto aspect-video cursor-pointer"
+          onClick={() => setIsFullScreen(true)}
+        >
           <img
             src={selectedImage}
             alt="Selected"
             className="w-full h-full object-cover rounded-lg"
           />
         </div>
+      )}
+      {isFullScreen && selectedImage && (
+        <ImageViewer
+          imageUrl={selectedImage}
+          onClose={() => setIsFullScreen(false)}
+        />
       )}
     </div>
   );

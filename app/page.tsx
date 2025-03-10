@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { ImageInput } from '@/components/image-input'
 import { CameraCapture } from '@/components/camera-capture'
+import { SampleImages } from '@/components/sample-images'
 import { AnalysisResults } from '@/components/analysis-results'
 import { CarbonFootprintSlider } from '@/components/carbon-footprint-slider'
 import { analyzeImage } from '@/lib/gemini'
 import type { AnalysisResult } from '@/lib/gemini'
 import { Button } from '@/components/ui/button'
-import { Camera, Upload, Loader2 } from 'lucide-react'
+import { Camera, Upload, Loader2, Image as ImageIcon } from 'lucide-react'
 
 export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -51,6 +52,7 @@ export default function Home() {
           <div className="mt-4">
             {activeTab === 'upload' && <ImageInput onCapture={handleImageCapture} />}
             {activeTab === 'camera' && <CameraCapture onCapture={handleImageCapture} />}
+            {activeTab === 'samples' && <SampleImages onSelectImage={handleImageCapture} />}
           </div>
 
           {/* Loading State */}
@@ -98,7 +100,7 @@ export default function Home() {
           <button
             onClick={() => setActiveTab('upload')}
             className={`flex-1 flex flex-col items-center py-3 ${
-              activeTab === 'upload' ? 'text-grey-600 dark:text-grey-400' : 'text-gray-600 dark:text-gray-400'
+              activeTab === 'upload' ? 'text-primary dark:text-primary' : 'text-gray-600 dark:text-gray-400'
             }`}
           >
             <Upload className="h-6 w-6" />
@@ -107,11 +109,20 @@ export default function Home() {
           <button
             onClick={() => setActiveTab('camera')}
             className={`flex-1 flex flex-col items-center py-3 ${
-              activeTab === 'camera' ? 'text-grey-600 dark:text-grey-400' : 'text-gray-600 dark:text-gray-400'
+              activeTab === 'camera' ? 'text-primary dark:text-primary' : 'text-gray-600 dark:text-gray-400'
             }`}
           >
             <Camera className="h-6 w-6" />
             <span className="text-xs mt-1">Camera</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('samples')}
+            className={`flex-1 flex flex-col items-center py-3 ${
+              activeTab === 'samples' ? 'text-primary dark:text-primary' : 'text-gray-600 dark:text-gray-400'
+            }`}
+          >
+            <ImageIcon className="h-6 w-6" />
+            <span className="text-xs mt-1">Samples</span>
           </button>
         </div>
       </nav>
